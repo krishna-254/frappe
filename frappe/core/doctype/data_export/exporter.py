@@ -369,7 +369,7 @@ class DataExporter:
 		if not frappe.permissions.can_export(self.parent_doctype):
 			frappe.permissions.can_export(self.parent_doctype, raise_exception=True, is_owner=True)
 			if isinstance(filters, dict):
-				filters = {**filters, "owner": frappe.session.user}
+				filters = [filters, ["owner", "=", frappe.session.user]]
 			else:
 				filters = [*(filters or []), ["owner", "=", frappe.session.user]]
 

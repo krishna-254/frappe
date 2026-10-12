@@ -160,5 +160,11 @@ class TestDataExporter(IntegrationTestCase):
 			self.assertIn(owned_doc.name, frappe.response["result"])
 			self.assertNotIn(self.doc.name, frappe.response["result"])
 
+			exporter = DataExporter(
+				doctype=self.doctype_name, file_type="CSV", filters={"owner": "Administrator"}
+			)
+			exporter.build_response()
+			self.assertEqual(exporter.data, [])
+
 	def tearDown(self):
 		pass

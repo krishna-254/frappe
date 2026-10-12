@@ -148,6 +148,64 @@ class TestReportview(IntegrationTestCase):
 		names_in_export = [row["ID"] for row in rows if row.get("ID") in desired_order]
 		self.assertEqual(names_in_export, desired_order)
 
+	def test_export_query_with_owner_only_export(self):
+		from csv import DictReader
+		from io import StringIO
+
+		suffix = frappe.generate_hash(length=6)
+		doctype = f"Test Report View Owner Export {suffix}"
+		role = frappe.get_doc(doctype="Role", role_name=doctype, desk_access=1).insert()
+		self.addCleanup(frappe.delete_doc, "Role", role.name, force=True)
+		user = frappe.get_doc(
+			doctype="User",
+			email=f"test-reportview-export-{suffix}@example.com",
+			first_name="Test Report View Export",
+			send_welcome_email=0,
+			roles=[{"role": role.name}],
+		).insert()
+		self.addCleanup(frappe.delete_doc, "User", user.name, force=True)
+		frappe.get_doc(
+			doctype="DocType",
+			name=doctype,
+			module="Custom",
+			custom=1,
+			autoname="field:title",
+			fields=[{"fieldname": "title", "label": "Title", "fieldtype": "Data", "reqd": 1}],
+			permissions=[{"role": "System Manager"}],
+		).insert()
+		self.addCleanup(frappe.delete_doc, "DocType", doctype, force=True)
+		frappe.get_doc(
+			doctype="Custom DocPerm",
+			parent=doctype,
+			role=role.name,
+			read=1,
+			export=1,
+			if_owner=1,
+		).insert()
+		frappe.get_doc(doctype="Custom DocPerm", parent=doctype, role=role.name, read=1, export=0).insert()
+
+		owned = frappe.get_doc(doctype=doctype, title="Owned Export Row").insert()
+		other = frappe.get_doc(doctype=doctype, title="Other Export Row").insert()
+		frappe.db.set_value(doctype, owned.name, "owner", user.name)
+		frappe.clear_cache(doctype=doctype)
+
+		with self.set_user(user.name):
+			for filters, selected_items, expected_names in (
+				({}, None, [owned.name]),
+				({}, json.dumps([owned.name, other.name]), [owned.name]),
+				({"owner": "Administrator"}, None, []),
+			):
+				frappe.local.form_dict = frappe._dict(
+					doctype=doctype,
+					file_format_type="CSV",
+					fields=("name", "title"),
+					filters=filters,
+					selected_items=selected_items,
+				)
+				export_query()
+				rows = list(DictReader(StringIO(frappe.response["filecontent"].decode("utf-8"))))
+				self.assertEqual([row["ID"] for row in rows], expected_names)
+
 	def test_extract_fieldname(self):
 		self.assertEqual(
 			extract_fieldnames("count(distinct `tabPhoto`.name) as total_count")[0], "tabPhoto.name"

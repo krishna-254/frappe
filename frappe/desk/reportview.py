@@ -529,6 +529,13 @@ def _export_query(form_params, csv_params, populate_response=True):
 		form_params.pop("limit_page_length", None)
 		form_params.pop("start", None)
 
+	if not frappe.permissions.can_export(doctype):
+		frappe.permissions.can_export(doctype, raise_exception=True, is_owner=True)
+		filters = form_params.get("filters") or []
+		if isinstance(filters, dict):
+			filters = [filters]
+		form_params["filters"] = [*filters, ["owner", "=", frappe.session.user]]
+
 	make_access_log(
 		doctype=doctype,
 		file_type=file_format_type,
@@ -541,16 +548,6 @@ def _export_query(form_params, csv_params, populate_response=True):
 
 	if visible_names:
 		ret = _reorder_by_visible_names(ret, form_params.get("fields", []), doctype, visible_names)
-
-	if not frappe.permissions.can_export(doctype):
-		if frappe.permissions.can_export(doctype, is_owner=True):
-			for row in ret:
-				if row[-1] != frappe.session.user:
-					raise frappe.PermissionError(
-						_("You are not allowed to export {} doctype").format(doctype)
-					)
-		else:
-			raise frappe.PermissionError(_("You are not allowed to export {} doctype").format(doctype))
 
 	if add_totals_row:
 		ret = append_totals_row(ret)
