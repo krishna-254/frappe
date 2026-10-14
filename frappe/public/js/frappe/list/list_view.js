@@ -177,7 +177,18 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 	validate_filters(filters) {
 		let valid_fields = this.meta.fields.map((df) => df.fieldname);
 		valid_fields = valid_fields.concat(frappe.model.std_fields_list);
-		return filters.filter((f) => valid_fields.includes(f[1])).uniqBy((f) => f[1]);
+		const child_doctypes = new Set(
+			frappe.meta.get_table_fields(this.doctype).map((df) => df.options)
+		);
+		return filters
+			.filter((f) =>
+				f[0] === this.doctype
+					? valid_fields.includes(f[1])
+					: child_doctypes.has(f[0]) &&
+					  (frappe.meta.has_field(f[0], f[1]) ||
+							frappe.model.std_fields_list.includes(f[1]))
+			)
+			.uniqBy((f) => `${f[0]}.${f[1]}`);
 	}
 
 	setup_page() {

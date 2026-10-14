@@ -121,6 +121,30 @@ test.describe("List View — Saved Layouts", () => {
 		await assert_active_layout(page, "Default Layout");
 	});
 
+	test("restores a legacy child-table filter without saved sorting", async ({
+		page,
+		desk,
+		api,
+	}) => {
+		const condition = ["Event Participants", "email", "=", "participant@example.com"];
+		await create_test_layout(api, {
+			layout_name: "_test_layout_legacy_event",
+			reference_doctype: "Event",
+			filters: JSON.stringify([condition]),
+			columns: "[]",
+			sort_field: null,
+			sort_order: null,
+		});
+
+		await page.goto("/desk/event");
+		await desk.ready();
+		await select_layout(page, "_test_layout_legacy_event");
+		await expect
+			.poll(() => page.evaluate(() => cur_list.filter_area.get()))
+			.toContainEqual(condition);
+		await expect.poll(() => page.evaluate(() => cur_list.sort_order)).toBe("desc");
+	});
+
 	test("opens manage layouts dialog with the saved layout listed", async ({
 		page,
 		desk,

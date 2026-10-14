@@ -165,6 +165,25 @@ class TestListFilter(UnitTestCase):
 		self.assertEqual(json.loads(updated["filters"]), [])
 		self.assertEqual(updated["route_signature"], "")
 
+	def test_child_table_filter_survives_save_as_desk_user(self):
+		user = self._ensure_desk_user(LIST_FILTER_OWNER)
+		frappe.set_user(user)
+		condition = ["Event Participants", "email", "=", "participant@example.com"]
+		doc = frappe.get_doc(
+			{
+				"doctype": "List Filter",
+				"filter_name": "_test_filter_event_participant",
+				"reference_doctype": "Event",
+				"for_user": user,
+				"filters": json.dumps([condition]),
+			}
+		).insert()
+
+		self.assertEqual(json.loads(doc.filters), [condition])
+		self.assertEqual(doc.route_signature, "Event Participants.email=participant@example.com")
+		doc.save()
+		self.assertEqual(json.loads(doc.filters), [condition])
+
 	def test_sanitize_columns_drops_invalid_field(self):
 		doc = self._create_filter()
 		updated = update_list_filter(

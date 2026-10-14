@@ -310,6 +310,7 @@ export const ListFilterMenu = {
 	/** Apply filters, sort, and columns without persisting anything. */
 	apply_layout_state({ filters, sort_by, sort_order, columns, refresh = true }) {
 		const lv = this.list_view;
+		sort_order = (sort_order || "desc").toLowerCase();
 		this._applying_layout = true;
 		lv.last_args = null;
 		lv.sort_by = sort_by;
